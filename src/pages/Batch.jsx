@@ -14,25 +14,25 @@ const FACULTIES_API = 'http://localhost:9998/faculties'
 const STUDENTS_API = 'http://localhost:9998/students'
 
 const statusColors = {
-  upcoming: 'bg-blue-100 text-blue-700',
-  ongoing: 'bg-emerald-100 text-emerald-700',
-  completed: 'bg-slate-100 text-slate-600',
-  cancelled: 'bg-red-100 text-red-700'
+  upcoming: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
+  ongoing: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+  completed: 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
+  cancelled: 'bg-red-500/10 text-red-400 border border-red-500/20'
 }
 const statusHeaderColors = {
-  upcoming: 'bg-blue-600',
-  ongoing: 'bg-emerald-600',
-  completed: 'bg-slate-500',
-  cancelled: 'bg-red-500'
+  upcoming: 'bg-gradient-to-r from-blue-600 to-blue-500',
+  ongoing: 'bg-gradient-to-r from-emerald-600 to-emerald-500',
+  completed: 'bg-gradient-to-r from-slate-600 to-slate-500',
+  cancelled: 'bg-gradient-to-r from-red-600 to-red-500'
 }
 const modeColors = {
-  online: 'bg-purple-100 text-purple-700',
-  offline: 'bg-amber-100 text-amber-700',
-  hybrid: 'bg-cyan-100 text-cyan-700'
+  online: 'bg-purple-500/10 text-purple-400 border border-purple-500/20',
+  offline: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+  hybrid: 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
 }
 const categoryColors = {
-  weekday: 'bg-indigo-100 text-indigo-700',
-  weekend: 'bg-pink-100 text-pink-700'
+  weekday: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20',
+  weekend: 'bg-pink-500/10 text-pink-400 border border-pink-500/20'
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -440,17 +440,17 @@ function Batch() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <button onClick={closeBatchDetail}
-              className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+              className="p-2 text-muted-foreground hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-slate-800 truncate">{selectedBatch.name}</h1>
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize ${statusColors[selectedBatch.batch_status] || 'bg-slate-100 text-slate-600'}`}>
+                <h1 className="text-2xl font-bold text-foreground truncate">{selectedBatch.name}</h1>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize ${statusColors[selectedBatch.batch_status] || 'bg-slate-100 text-muted-foreground'}`}>
                   {selectedBatch.batch_status}
                 </span>
               </div>
-              <p className="text-slate-500 mt-1">
+              <p className="text-muted-foreground mt-1">
                 {batchStudents.length} student{batchStudents.length !== 1 ? 's' : ''}
                 {selectedBatch.course_name && ` · ${selectedBatch.course_name}`}
               </p>
@@ -471,7 +471,7 @@ function Batch() {
         </div>
 
         {/* Student Search */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+        <div className="bg-card rounded-xl p-4 shadow-sm border border-slate-200">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
@@ -483,13 +483,13 @@ function Batch() {
             />
             {studentSearchText && (
               <button onClick={() => setStudentSearchText('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-muted-foreground">
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
           {studentSearchText && (
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               {filteredBatchStudents.length} of {batchStudents.length} student{batchStudents.length !== 1 ? 's' : ''} match
             </p>
           )}
@@ -499,23 +499,23 @@ function Batch() {
         {studentsLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-            <span className="ml-3 text-slate-500">Loading students...</span>
+            <span className="ml-3 text-muted-foreground">Loading students...</span>
           </div>
         ) : filteredBatchStudents.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredBatchStudents.map((student) => (
               <div key={student.student_id || student.id}
-                className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                className="bg-card rounded-xl shadow-sm border border-slate-200 p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
                       <User className="w-5 h-5 text-primary-600" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-medium text-slate-800 truncate">
+                      <h4 className="font-medium text-foreground truncate">
                         {studentDisplayName(student)}
                       </h4>
-                      <p className="text-xs text-slate-500 truncate flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                         <Mail className="w-3 h-3 shrink-0" />
                         {student.email || '-'}
                       </p>
@@ -528,7 +528,7 @@ function Batch() {
                   </button>
                 </div>
                 {(student.mobile || student.phone) && (
-                  <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                     <Phone className="w-3 h-3 shrink-0" />
                     {student.mobile || student.phone}
                   </p>
@@ -537,9 +537,9 @@ function Batch() {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-16 text-center">
+          <div className="bg-card rounded-xl shadow-sm border border-slate-200 px-6 py-16 text-center">
             <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 font-medium">
+            <p className="text-muted-foreground font-medium">
               {studentSearchText ? 'No students match your search' : 'No students in this batch yet'}
             </p>
             <p className="text-slate-400 text-sm mt-1">
@@ -558,13 +558,13 @@ function Batch() {
         {isAddExistingOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsAddExistingOpen(false)}></div>
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800">Add Existing Student</h3>
-                  <p className="text-sm text-slate-500">Batch: {selectedBatch.name}</p>
+                  <h3 className="text-lg font-semibold text-foreground">Add Existing Student</h3>
+                  <p className="text-sm text-muted-foreground">Batch: {selectedBatch.name}</p>
                 </div>
-                <button onClick={() => setIsAddExistingOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                <button onClick={() => setIsAddExistingOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg text-muted-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -582,10 +582,10 @@ function Batch() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-slate-500 mt-2">Only students not already in this batch are shown.</p>
+                <p className="text-xs text-muted-foreground mt-2">Only students not already in this batch are shown.</p>
                 <div className="flex items-center justify-end gap-3 mt-6">
                   <button onClick={() => setIsAddExistingOpen(false)}
-                    className="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                    className="px-4 py-2.5 text-sm font-medium text-muted-foreground bg-slate-100 rounded-lg hover:bg-slate-200">
                     Cancel
                   </button>
                   <button onClick={handleAddExistingStudent}
@@ -602,13 +602,13 @@ function Batch() {
         {isNewStudentOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-8">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsNewStudentOpen(false)}></div>
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+            <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800">Add New Student</h3>
-                  <p className="text-sm text-slate-500">Create and add to: {selectedBatch.name}</p>
+                  <h3 className="text-lg font-semibold text-foreground">Add New Student</h3>
+                  <p className="text-sm text-muted-foreground">Create and add to: {selectedBatch.name}</p>
                 </div>
-                <button onClick={() => setIsNewStudentOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                <button onClick={() => setIsNewStudentOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg text-muted-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -659,7 +659,7 @@ function Batch() {
                 </div>
                 <div className="flex items-center justify-end gap-3 pt-4">
                   <button type="button" onClick={() => setIsNewStudentOpen(false)}
-                    className="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                    className="px-4 py-2.5 text-sm font-medium text-muted-foreground bg-slate-100 rounded-lg hover:bg-slate-200">
                     Cancel
                   </button>
                   <button type="submit"
@@ -676,20 +676,20 @@ function Batch() {
         {deleteStudentModal.isOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteStudentModal({ isOpen: false, student: null })}></div>
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
               <div className="p-6 text-center">
                 <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                   <AlertTriangle className="w-8 h-8 text-red-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-800 mb-2">Remove Student</h3>
-                <p className="text-slate-500 mb-2">Remove this student from the batch?</p>
+                <h3 className="text-xl font-semibold text-foreground mb-2">Remove Student</h3>
+                <p className="text-muted-foreground mb-2">Remove this student from the batch?</p>
                 <div className="bg-slate-100 rounded-lg px-4 py-3 mb-6">
-                  <p className="font-semibold text-slate-800">{studentDisplayName(deleteStudentModal.student || {})}</p>
-                  <p className="text-sm text-slate-500">{deleteStudentModal.student?.email}</p>
+                  <p className="font-semibold text-foreground">{studentDisplayName(deleteStudentModal.student || {})}</p>
+                  <p className="text-sm text-muted-foreground">{deleteStudentModal.student?.email}</p>
                 </div>
                 <div className="flex items-center justify-center gap-3">
                   <button onClick={() => setDeleteStudentModal({ isOpen: false, student: null })}
-                    className="px-6 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                    className="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-slate-100 rounded-lg hover:bg-slate-200">
                     Cancel
                   </button>
                   <button onClick={handleRemoveStudent}
@@ -712,8 +712,8 @@ function Batch() {
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-800">Batch Management</h1>
-          <p className="text-slate-500 mt-1">Manage your institute batches and schedules</p>
+          <h1 className="text-2xl font-bold text-foreground">Batch Management</h1>
+          <p className="text-muted-foreground mt-1">Manage your institute batches and schedules</p>
         </div>
         <button onClick={openCreateModal}
           className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm shrink-0">
@@ -723,7 +723,7 @@ function Batch() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+      <div className="bg-card rounded-xl p-4 shadow-sm border border-slate-200">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -780,7 +780,7 @@ function Batch() {
                 <button onClick={() => setModeFilter('')}><X className="w-3 h-3" /></button>
               </span>
             )}
-            <span className="text-xs text-slate-500 self-center">
+            <span className="text-xs text-muted-foreground self-center">
               {filteredBatches.length} result{filteredBatches.length !== 1 ? 's' : ''} found
             </span>
           </div>
@@ -791,13 +791,13 @@ function Batch() {
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-          <span className="ml-3 text-slate-500">Loading batches...</span>
+          <span className="ml-3 text-muted-foreground">Loading batches...</span>
         </div>
       ) : filteredBatches.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredBatches.map((batch) => (
             <div key={batch.id} onClick={() => openBatchDetail(batch)}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow cursor-pointer">
+              className="bg-card rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow cursor-pointer">
               <div className={`${statusHeaderColors[batch.batch_status] || 'bg-slate-500'} px-4 pt-4 pb-8`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -805,7 +805,7 @@ function Batch() {
                     {batch.course_name && <p className="text-white/80 text-xs mt-1 font-medium truncate">{batch.course_name}</p>}
                     {batch.manager_name && <p className="text-white/70 text-xs mt-0.5 truncate">{batch.manager_name}</p>}
                   </div>
-                  <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center shrink-0 border-2 border-white/30">
+                  <div className="w-11 h-11 rounded-full bg-card/20 flex items-center justify-center shrink-0 border-2 border-white/30">
                     <Users className="w-5 h-5 text-white" />
                   </div>
                 </div>
@@ -813,40 +813,40 @@ function Batch() {
 
               <div className="px-4 pt-3 pb-3 flex flex-col gap-2 flex-1">
                 <div className="flex flex-wrap gap-1.5">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[batch.batch_status] || 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[batch.batch_status] || 'bg-slate-100 text-muted-foreground'}`}>
                     {batch.batch_status || '-'}
                   </span>
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${modeColors[batch.batch_mode] || 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${modeColors[batch.batch_mode] || 'bg-slate-100 text-muted-foreground'}`}>
                     {batch.batch_mode === 'online' && <Wifi className="w-3 h-3" />}
                     {batch.batch_mode === 'offline' && <MapPin className="w-3 h-3" />}
                     {batch.batch_mode === 'hybrid' && <Monitor className="w-3 h-3" />}
                     {batch.batch_mode || '-'}
                   </span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${categoryColors[batch.batch_category] || 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${categoryColors[batch.batch_category] || 'bg-slate-100 text-muted-foreground'}`}>
                     {batch.batch_category || '-'}
                   </span>
                 </div>
                 <div className="space-y-1.5 mt-1">
                   {batch.faculty_name && (
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">{batch.faculty_name}</span>
                     </div>
                   )}
                   {batch.batch_time && (
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">{batch.batch_time}</span>
                     </div>
                   )}
                   {(batch.start_date || batch.end_date) && (
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">{formatDate(batch.start_date)} – {formatDate(batch.end_date)}</span>
                     </div>
                   )}
                   {batch.description && (
-                    <div className="flex items-start gap-2 text-xs text-slate-500">
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
                       <BookOpen className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                       <span className="line-clamp-2">{batch.description}</span>
                     </div>
@@ -856,11 +856,11 @@ function Batch() {
 
               <div className="flex items-center justify-end gap-1 px-4 py-2.5 border-t border-slate-100 bg-slate-50">
                 <button onClick={(e) => { e.stopPropagation(); handleEdit(batch.id) }}
-                  className="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Edit">
+                  className="p-2 text-muted-foreground hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Edit">
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); openDeleteModal(batch) }}
-                  className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                  className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -868,9 +868,9 @@ function Batch() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-16 text-center">
+        <div className="bg-card rounded-xl shadow-sm border border-slate-200 px-6 py-16 text-center">
           <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500 font-medium">
+          <p className="text-muted-foreground font-medium">
             {statusFilter || modeFilter ? 'No batches match the selected filters' : 'No batches found'}
           </p>
           <p className="text-slate-400 text-sm mt-1">
@@ -886,18 +886,18 @@ function Batch() {
       )}
 
       {/* Pagination */}
-      <div className="flex items-center justify-between bg-white rounded-xl px-6 py-4 shadow-sm border border-slate-200">
-        <p className="text-sm text-slate-600">
+      <div className="flex items-center justify-between bg-card rounded-xl px-6 py-4 shadow-sm border border-slate-200">
+        <p className="text-sm text-muted-foreground">
           Page {pageIndex} — Showing {filteredBatches.length} {filteredBatches.length === 1 ? 'batch' : 'batches'}
         </p>
         <div className="flex items-center gap-2">
           <button onClick={() => setPageIndex(pageIndex - 1)} disabled={pageIndex === 1}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
+            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-muted-foreground bg-card border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
             <ChevronLeft className="w-4 h-4" /> Prev
           </button>
           <span className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg">{pageIndex}</span>
           <button onClick={() => setPageIndex(pageIndex + 1)} disabled={filteredBatches.length < pageSize}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
+            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-muted-foreground bg-card border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
             Next <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -907,10 +907,10 @@ function Batch() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal}></div>
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
-              <h2 className="text-lg font-semibold text-slate-800">{editId ? 'Edit Batch' : 'Add New Batch'}</h2>
-              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+          <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-card z-10">
+              <h2 className="text-lg font-semibold text-foreground">{editId ? 'Edit Batch' : 'Add New Batch'}</h2>
+              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-muted-foreground hover:bg-slate-100 rounded-lg transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -998,7 +998,7 @@ function Batch() {
               </div>
               <div className="flex items-center justify-end gap-3 pt-4">
                 <button type="button" onClick={closeModal}
-                  className="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                  className="px-4 py-2.5 text-sm font-medium text-muted-foreground bg-slate-100 rounded-lg hover:bg-slate-200">
                   Cancel
                 </button>
                 <button type="submit"
@@ -1015,21 +1015,21 @@ function Batch() {
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeDeleteModal}></div>
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+          <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
             <div className="p-6 text-center">
               <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                 <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">Delete Batch</h3>
-              <p className="text-slate-500 mb-2">Are you sure you want to delete this batch?</p>
+              <h3 className="text-xl font-semibold text-foreground mb-2">Delete Batch</h3>
+              <p className="text-muted-foreground mb-2">Are you sure you want to delete this batch?</p>
               <div className="bg-slate-100 rounded-lg px-4 py-3 mb-6">
-                <p className="text-sm text-slate-600">Batch Name</p>
-                <p className="font-semibold text-slate-800">{deleteModal.batch?.name}</p>
+                <p className="text-sm text-muted-foreground">Batch Name</p>
+                <p className="font-semibold text-foreground">{deleteModal.batch?.name}</p>
               </div>
               <p className="text-sm text-red-500 mb-6">This action cannot be undone.</p>
               <div className="flex items-center justify-center gap-3">
                 <button onClick={closeDeleteModal}
-                  className="px-6 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                  className="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-slate-100 rounded-lg hover:bg-slate-200">
                   Cancel
                 </button>
                 <button onClick={confirmDelete}
