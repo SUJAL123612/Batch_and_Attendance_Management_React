@@ -7,7 +7,6 @@ import Manager from './pages/Manager'
 import Faculties from './pages/Faculties'
 import Students from './pages/Students'
 import Batch from './pages/Batch'
-import BatchDetail from './pages/BatchDetail'
 
 function App() {
   return (
@@ -21,7 +20,6 @@ function App() {
         <Route path="faculties" element={<Faculties />} />
         <Route path="students" element={<Students />} />
         <Route path="batches" element={<Batch />} />
-        <Route path="batches/:id" element={<BatchDetail />} />
       </Route>
     </Routes>
   )

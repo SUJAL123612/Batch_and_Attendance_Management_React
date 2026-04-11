@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import {
   Plus, Search, Edit2, Trash2, ChevronLeft, ChevronRight,
   X, Users, AlertTriangle, Calendar, Clock, Monitor,
-  MapPin, Wifi, BookOpen, GraduationCap
+  MapPin, Wifi, BookOpen, GraduationCap, ArrowLeft, UserPlus, 
+  User, Mail, Phone
 } from 'lucide-react'
 
 const API = 'http://localhost:9998/batches'
 const COURSES_API = 'http://localhost:9998/courses'
 const MANAGERS_API = 'http://localhost:9998/manager'
 const FACULTIES_API = 'http://localhost:9998/faculties'
+const STUDENTS_API = 'http://localhost:9998/students'
+const BATCH_STUDENTS_API = 'http://localhost:9998/batch_students'
 
 const statusColors = {
   upcoming: 'bg-blue-100 text-blue-700',
@@ -58,7 +60,10 @@ const emptyForm = {
 
 // ── Component ──────────────────────────────────────────────────────────────
 function Batch() {
-  const navigate = useNavigate()
+  // View state: 'list' or 'detail'
+  const [view, setView] = useState('list')
+  const [selectedBatch, setSelectedBatch] = useState(null)
+
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -78,6 +83,20 @@ function Batch() {
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [modeFilter, setModeFilter] = useState('')
+
+  // Detail view state
+  const [batchStudents, setBatchStudents] = useState([])
+  const [allStudents, setAllStudents] = useState([])
+  const [studentSearchText, setStudentSearchText] = useState('')
+  const [studentsLoading, setStudentsLoading] = useState(false)
+  const [isAddExistingOpen, setIsAddExistingOpen] = useState(false)
+  const [isNewStudentOpen, setIsNewStudentOpen] = useState(false)
+  const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [deleteStudentModal, setDeleteStudentModal] = useState({ isOpen: false, student: null })
+  const [newStudentForm, setNewStudentForm] = useState({
+    first_name: '', last_name: '', mobile: '', alternate_mobile: '', dob: '', email: ''
+  })
+  const [formErrors, setFormErrors] = useState({})
 
   // ── Client-side filtering (guaranteed fallback) ──────────────────────────
   const filteredBatches = batches.filter((batch) => {
@@ -130,6 +149,158 @@ function Batch() {
 
   useEffect(() => { fetchDropdownData() }, [])
   useEffect(() => { fetchBatches() }, [pageIndex, pageSize, sortBy, sortOrder, statusFilter, modeFilter])
+
+  // ── Detail View Functions ────────────────────────────────────────────────
+  const fetchBatchStudents = async (batchId) => {
+    setStudentsLoading(true)
+    try {
+      let res
+      try {
+        res = await axios.get(`${BATCH_STUDENTS_API}/get_batch_student_list`, {
+          params: { batch_id: batchId }
+        })
+      } catch {
+        res = await axios.get(`${API}/get_batch_students/${batchId}`)
+      }
+      const data = res.data.data || res.data
+      setBatchStudents(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Failed to fetch batch students:', err)
+      setBatchStudents([])
+    } finally {
+      setStudentsLoading(false)
+    }
+  }
+
+  const fetchAllStudents = async () => {
+    try {
+      const res = await axios.get(`${STUDENTS_API}/get_student_list`, {
+        params: { page_size: 1000 }
+      })
+      const data = res.data.data || res.data
+      setAllStudents(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Failed to fetch all students:', err)
+      setAllStudents([])
+    }
+  }
+
+  const openBatchDetail = async (batch) => {
+    setSelectedBatch(batch)
+    setView('detail')
+    setStudentSearchText('')
+    await Promise.all([fetchBatchStudents(batch.id), fetchAllStudents()])
+  }
+
+  const closeBatchDetail = () => {
+    setView('list')
+    setSelectedBatch(null)
+    setBatchStudents([])
+    setStudentSearchText('')
+  }
+
+  // Filter students in batch by search
+  const filteredBatchStudents = batchStudents.filter((student) => {
+    if (!studentSearchText) return true
+    const name = `${student.first_name || ''} ${student.last_name || ''}`.toLowerCase()
+    const email = (student.email || '').toLowerCase()
+    const mobile = (student.mobile || '').toLowerCase()
+    const search = studentSearchText.toLowerCase()
+    return name.includes(search) || email.includes(search) || mobile.includes(search)
+  })
+
+  // Students not already in batch (for adding)
+  const availableStudents = allStudents.filter(
+    (s) => !batchStudents.some((bs) => (bs.student_id || bs.id) === s.id)
+  )
+
+  // Add existing student to batch
+  const handleAddExistingStudent = async () => {
+    if (!selectedStudentId || !selectedBatch) {
+      alert('Please select a student')
+      return
+    }
+    try {
+      try {
+        await axios.post(`${BATCH_STUDENTS_API}/create_batch_student`, {
+          batch_id: Number(selectedBatch.id),
+          student_id: Number(selectedStudentId)
+        })
+      } catch {
+        await axios.post(`${API}/add_student_to_batch`, {
+          batch_id: Number(selectedBatch.id),
+          student_id: Number(selectedStudentId)
+        })
+      }
+      setIsAddExistingOpen(false)
+      setSelectedStudentId('')
+      await Promise.all([fetchBatchStudents(selectedBatch.id), fetchAllStudents()])
+    } catch (err) {
+      console.error('Failed to add student to batch:', err)
+      alert('Failed to save student')
+    }
+  }
+
+  // Validate new student form
+  const validateNewStudentForm = () => {
+    const errors = {}
+    if (!newStudentForm.first_name.trim()) errors.first_name = 'First name is required'
+    if (!newStudentForm.last_name.trim()) errors.last_name = 'Last name is required'
+    if (!newStudentForm.email.trim()) errors.email = 'Email is required'
+    else if (!/\S+@\S+\.\S+/.test(newStudentForm.email)) errors.email = 'Invalid email'
+    if (!newStudentForm.mobile.trim()) errors.mobile = 'Mobile is required'
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  // Create new student and add to batch
+  const handleCreateNewStudent = async (e) => {
+    e.preventDefault()
+    if (!validateNewStudentForm() || !selectedBatch) return
+    try {
+      const createRes = await axios.post(`${STUDENTS_API}/create_student`, newStudentForm)
+      const newStudentId = createRes.data.data?.id || createRes.data.id || createRes.data.insertId
+      if (newStudentId) {
+        try {
+          await axios.post(`${BATCH_STUDENTS_API}/create_batch_student`, {
+            batch_id: Number(selectedBatch.id),
+            student_id: Number(newStudentId)
+          })
+        } catch {
+          await axios.post(`${API}/add_student_to_batch`, {
+            batch_id: Number(selectedBatch.id),
+            student_id: Number(newStudentId)
+          })
+        }
+      }
+      setIsNewStudentOpen(false)
+      setNewStudentForm({ first_name: '', last_name: '', mobile: '', alternate_mobile: '', dob: '', email: '' })
+      setFormErrors({})
+      await Promise.all([fetchBatchStudents(selectedBatch.id), fetchAllStudents()])
+    } catch (err) {
+      console.error('Failed to create student:', err)
+      alert('Failed to create student')
+    }
+  }
+
+  // Remove student from batch
+  const handleRemoveStudent = async () => {
+    if (!deleteStudentModal.student || !selectedBatch) return
+    try {
+      const studentId = deleteStudentModal.student.student_id || deleteStudentModal.student.id
+      const batchStudentId = deleteStudentModal.student.batch_student_id || deleteStudentModal.student.id
+      try {
+        await axios.delete(`${BATCH_STUDENTS_API}/delete_batch_student/${batchStudentId}`)
+      } catch {
+        await axios.delete(`${API}/remove_student_from_batch/${selectedBatch.id}/${studentId}`)
+      }
+      setDeleteStudentModal({ isOpen: false, student: null })
+      await Promise.all([fetchBatchStudents(selectedBatch.id), fetchAllStudents()])
+    } catch (err) {
+      console.error('Failed to remove student:', err)
+      alert('Failed to remove student from batch')
+    }
+  }
 
   // ── Edit ─────────────────────────────────────────────────────────────────
   const handleEdit = async (id) => {
@@ -225,10 +396,302 @@ function Batch() {
     })
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
-  return (
-    <div className="space-y-6 min-w-0">
+// ── Render ───────────────────────────────────────────────────────────────
 
+  // Detail View
+  if (view === 'detail' && selectedBatch) {
+    return (
+      <div className="space-y-6 min-w-0">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              onClick={closeBatchDetail}
+              className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-slate-800 truncate">{selectedBatch.name}</h1>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize ${statusColors[selectedBatch.batch_status] || 'bg-slate-100 text-slate-600'}`}>
+                  {selectedBatch.batch_status}
+                </span>
+              </div>
+              <p className="text-slate-500 mt-1">
+                {batchStudents.length} student{batchStudents.length !== 1 ? 's' : ''} 
+                {selectedBatch.course_name && ` · ${selectedBatch.course_name}`}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsAddExistingOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span className="font-medium text-sm">Existing</span>
+            </button>
+            <button
+              onClick={() => setIsNewStudentOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="font-medium">New Student</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search students by name, email, or phone..."
+              value={studentSearchText}
+              onChange={(e) => setStudentSearchText(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            />
+            {studentSearchText && (
+              <button
+                onClick={() => setStudentSearchText('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Students List */}
+        {studentsLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="ml-3 text-slate-500">Loading students...</span>
+          </div>
+        ) : filteredBatchStudents.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredBatchStudents.map((student) => (
+              <div key={student.student_id || student.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                      <User className="w-5 h-5 text-primary-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-medium text-slate-800 truncate">
+                        {student.first_name} {student.last_name}
+                      </h4>
+                      <p className="text-xs text-slate-500 truncate flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {student.email || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setDeleteStudentModal({ isOpen: true, student })}
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                {student.mobile && (
+                  <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> {student.mobile}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-16 text-center">
+            <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500 font-medium">
+              {studentSearchText ? 'No students match your search' : 'No students in this batch yet'}
+            </p>
+            <p className="text-slate-400 text-sm mt-1">
+              {studentSearchText ? 'Try a different search term.' : 'Add students to get started.'}
+            </p>
+            {studentSearchText && (
+              <button
+                onClick={() => setStudentSearchText('')}
+                className="mt-4 px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+              >
+                Clear Search
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Add Existing Student Modal */}
+        {isAddExistingOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsAddExistingOpen(false)}></div>
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">Add Existing Student</h3>
+                  <p className="text-sm text-slate-500">Batch: {selectedBatch.name}</p>
+                </div>
+                <button onClick={() => setIsAddExistingOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Select Student *</label>
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                >
+                  <option value="">Choose a student...</option>
+                  {availableStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.first_name} {s.last_name} — {s.email}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-2">Only students not already in this batch are shown.</p>
+                <div className="flex items-center justify-end gap-3 mt-6">
+                  <button onClick={() => setIsAddExistingOpen(false)} className="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                    Cancel
+                  </button>
+                  <button onClick={handleAddExistingStudent} className="px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">
+                    Add to Batch
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* New Student Modal */}
+        {isNewStudentOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-8">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsNewStudentOpen(false)}></div>
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">Add New Student</h3>
+                  <p className="text-sm text-slate-500">Create and add to: {selectedBatch.name}</p>
+                </div>
+                <button onClick={() => setIsNewStudentOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateNewStudent} className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name *</label>
+                    <input
+                      type="text"
+                      value={newStudentForm.first_name}
+                      onChange={(e) => setNewStudentForm({ ...newStudentForm, first_name: e.target.value })}
+                      className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 ${formErrors.first_name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-slate-200 focus:border-primary-500 focus:ring-primary-500'}`}
+                    />
+                    {formErrors.first_name && <p className="text-xs text-red-500 mt-1">{formErrors.first_name}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name *</label>
+                    <input
+                      type="text"
+                      value={newStudentForm.last_name}
+                      onChange={(e) => setNewStudentForm({ ...newStudentForm, last_name: e.target.value })}
+                      className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 ${formErrors.last_name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-slate-200 focus:border-primary-500 focus:ring-primary-500'}`}
+                    />
+                    {formErrors.last_name && <p className="text-xs text-red-500 mt-1">{formErrors.last_name}</p>}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Email *</label>
+                  <input
+                    type="email"
+                    value={newStudentForm.email}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, email: e.target.value })}
+                    className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 ${formErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-slate-200 focus:border-primary-500 focus:ring-primary-500'}`}
+                  />
+                  {formErrors.email && <p className="text-xs text-red-500 mt-1">{formErrors.email}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Mobile *</label>
+                    <input
+                      type="tel"
+                      value={newStudentForm.mobile}
+                      onChange={(e) => setNewStudentForm({ ...newStudentForm, mobile: e.target.value })}
+                      className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 ${formErrors.mobile ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-slate-200 focus:border-primary-500 focus:ring-primary-500'}`}
+                    />
+                    {formErrors.mobile && <p className="text-xs text-red-500 mt-1">{formErrors.mobile}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Alternate Mobile</label>
+                    <input
+                      type="tel"
+                      value={newStudentForm.alternate_mobile}
+                      onChange={(e) => setNewStudentForm({ ...newStudentForm, alternate_mobile: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={newStudentForm.dob}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, dob: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-4">
+                  <button type="button" onClick={() => setIsNewStudentOpen(false)} className="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                    Cancel
+                  </button>
+                  <button type="submit" className="px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">
+                    Create & Add
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Student Modal */}
+        {deleteStudentModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteStudentModal({ isOpen: false, student: null })}></div>
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+              <div className="p-6 text-center">
+                <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-800 mb-2">Remove Student</h3>
+                <p className="text-slate-500 mb-2">Remove this student from the batch?</p>
+                <div className="bg-slate-100 rounded-lg px-4 py-3 mb-6">
+                  <p className="font-semibold text-slate-800">
+                    {deleteStudentModal.student?.first_name} {deleteStudentModal.student?.last_name}
+                  </p>
+                  <p className="text-sm text-slate-500">{deleteStudentModal.student?.email}</p>
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <button onClick={() => setDeleteStudentModal({ isOpen: false, student: null })} className="px-6 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                    Cancel
+                  </button>
+                  <button onClick={handleRemoveStudent} className="px-6 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // List View
+  return (
+  <div className="space-y-6 min-w-0">
+  
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
@@ -354,7 +817,7 @@ function Batch() {
           {filteredBatches.map((batch) => (
             <div
               key={batch.id}
-              onClick={() => navigate(`/batches/${batch.id}`)}
+              onClick={() => openBatchDetail(batch)}
               className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow cursor-pointer"
             >
               {/* Card Header */}
