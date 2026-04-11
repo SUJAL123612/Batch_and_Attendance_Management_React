@@ -50,8 +50,22 @@ const courseLabel = (obj) => obj.name || obj.course_name || obj.title || String(
 
 // Resolve student display name regardless of field names from API
 const studentName = (s) => {
-  if (s.first_name || s.last_name) return `${s.first_name || ''} ${s.last_name || ''}`.trim()
-  return s.name || s.student_name || s.full_name || `Student #${s.id}`
+  if (!s) return 'Unknown Student'
+
+  const name = [
+    s.first_name,
+    s.last_name
+  ].filter(Boolean).join(' ').trim()
+
+  if (name) return name
+
+  return (
+    s.name ||
+    s.student_name ||
+    s.full_name ||
+    s.username ||
+    `Student #${s.id}`
+  )
 }
 
 const emptyBatchForm = {
@@ -117,17 +131,22 @@ export default function Batch() {
   // ── Student search — supports any field name structure from API ───────────
   const filteredBatchStudents = useMemo(() => {
     if (!studentSearch) return batchStudents
+
     const q = studentSearch.toLowerCase()
+
     return batchStudents.filter((s) => {
-      // Build a combined name string from every possible name field
-      const name = [
-        s.first_name, s.last_name, s.name, s.student_name, s.full_name
-      ].filter(Boolean).join(' ').toLowerCase()
+      const name = studentName(s).toLowerCase()
 
       const email = (s.email || '').toLowerCase()
-      const mobile = (s.mobile || s.phone || s.contact || s.mobile_no || '')
+      const mobile = String(
+        s.mobile || s.phone || s.contact || s.mobile_no || ''
+      )
 
-      return name.includes(q) || email.includes(q) || String(mobile).includes(q)
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        mobile.includes(q)
+      )
     })
   }, [batchStudents, studentSearch])
 
