@@ -393,19 +393,19 @@ export default function Batch() {
     <div className="space-y-6 min-w-0">
 
       {/* Page Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-800">Batch Management</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Batch Management</h1>
+          <p className="text-slate-500 mt-0.5 text-sm">
             {allBatches.length} total batch{allBatches.length !== 1 ? 'es' : ''}
             {selectedBatch && (
-              <span className="ml-2 text-primary-600 font-medium">— {selectedBatch.name} selected</span>
+              <span className="ml-2 text-primary-600 font-medium">— {selectedBatch.name}</span>
             )}
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm shrink-0"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm shrink-0 w-full sm:w-auto"
         >
           <Plus className="w-5 h-5" />
           <span className="font-medium">Add Batch</span>
@@ -609,21 +609,21 @@ export default function Batch() {
           )}
 
           {/* Pagination */}
-          <div className="flex items-center justify-between bg-white rounded-xl px-6 py-4 shadow-sm border border-slate-200">
-            <p className="text-sm text-slate-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-xl px-4 sm:px-6 py-3 sm:py-4 shadow-sm border border-slate-200">
+            <p className="text-sm text-slate-600 order-2 sm:order-1">
               Showing {pagedBatches.length > 0 ? (pageIndex - 1) * pageSize + 1 : 0}–{Math.min(pageIndex * pageSize, filteredBatches.length)} of {filteredBatches.length}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 order-1 sm:order-2 w-full sm:w-auto justify-center">
               <button onClick={() => setPageIndex(pageIndex - 1)} disabled={pageIndex === 1}
                 className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                <ChevronLeft className="w-4 h-4" /> Prev
+                <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Prev</span>
               </button>
-              <span className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg">
+              <span className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg">
                 {pageIndex} / {totalPages}
               </span>
               <button onClick={() => setPageIndex(pageIndex + 1)} disabled={pageIndex >= totalPages}
                 className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                Next <ChevronRight className="w-4 h-4" />
+                <span className="hidden sm:inline">Next</span> <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -635,29 +635,29 @@ export default function Batch() {
 
             {/* Panel Header */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <button onClick={handleDeselectBatch} className="p-1 text-slate-400 hover:text-slate-600 lg:hidden">
+                    <button onClick={handleDeselectBatch} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg lg:hidden">
                       <ArrowLeft className="w-4 h-4" />
                     </button>
-                    <h2 className="text-lg font-semibold text-slate-800 truncate">{selectedBatch.name}</h2>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[selectedBatch.batch_status] || 'bg-slate-100 text-slate-600'}`}>
+                    <h2 className="text-base sm:text-lg font-semibold text-slate-800 truncate">{selectedBatch.name}</h2>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize shrink-0 ${statusColors[selectedBatch.batch_status] || 'bg-slate-100 text-slate-600'}`}>
                       {selectedBatch.batch_status}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 mt-0.5">
+                  <p className="text-sm text-slate-500 mt-0.5 ml-7 lg:ml-0">
                     {filteredBatchStudents.length} student{filteredBatchStudents.length !== 1 ? 's' : ''}
                     {selectedBatch.course_name && <span className="ml-2 text-slate-400">· {selectedBatch.course_name}</span>}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button onClick={openAddStudentModal}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium">
-                    <UserPlus className="w-4 h-4" /> Add Existing
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium">
+                    <UserPlus className="w-4 h-4" /> <span className="hidden xs:inline">Add</span> Existing
                   </button>
                   <button onClick={openCreateStudentModal}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium">
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium">
                     <Plus className="w-4 h-4" /> New Student
                   </button>
                 </div>
