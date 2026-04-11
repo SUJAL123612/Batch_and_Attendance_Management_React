@@ -3,49 +3,56 @@ import axios from 'axios'
 import {
   Plus, Search, Edit2, Trash2, ChevronLeft, ChevronRight,
   X, Users, AlertTriangle, Calendar, Clock, Monitor,
-  MapPin, Wifi, BookOpen, GraduationCap, UserPlus, ChevronRight as Arrow,
-  User, Mail, Phone, Hash, ArrowLeft
+  MapPin, Wifi, BookOpen, GraduationCap, UserPlus,
+  User, Mail, Phone, ArrowLeft
 } from 'lucide-react'
 
-const API          = 'http://localhost:9998/batches'
-const COURSES_API  = 'http://localhost:9998/courses'
+const API = 'http://localhost:9998/batches'
+const COURSES_API = 'http://localhost:9998/courses'
 const MANAGERS_API = 'http://localhost:9998/manager'
-const FACULTIES_API= 'http://localhost:9998/faculties'
+const FACULTIES_API = 'http://localhost:9998/faculties'
 const STUDENTS_API = 'http://localhost:9998/students'
 
 const statusColors = {
-  upcoming:  'bg-blue-100 text-blue-700',
-  ongoing:   'bg-emerald-100 text-emerald-700',
+  upcoming: 'bg-blue-100 text-blue-700',
+  ongoing: 'bg-emerald-100 text-emerald-700',
   completed: 'bg-slate-100 text-slate-600',
   cancelled: 'bg-red-100 text-red-700'
 }
 const statusHeaderColors = {
-  upcoming:  'bg-blue-600',
-  ongoing:   'bg-emerald-600',
+  upcoming: 'bg-blue-600',
+  ongoing: 'bg-emerald-600',
   completed: 'bg-slate-500',
   cancelled: 'bg-red-500'
 }
 const modeColors = {
-  online:  'bg-purple-100 text-purple-700',
+  online: 'bg-purple-100 text-purple-700',
   offline: 'bg-amber-100 text-amber-700',
-  hybrid:  'bg-cyan-100 text-cyan-700'
+  hybrid: 'bg-cyan-100 text-cyan-700'
 }
 const categoryColors = {
   weekday: 'bg-indigo-100 text-indigo-700',
   weekend: 'bg-pink-100 text-pink-700'
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
 const extractData = (response) => {
   const d = response.data
   if (Array.isArray(d)) return d
-  if (d?.data  && Array.isArray(d.data))  return d.data
-  if (d?.rows  && Array.isArray(d.rows))  return d.rows
-  if (d?.result&& Array.isArray(d.result))return d.result
+  if (d?.data && Array.isArray(d.data)) return d.data
+  if (d?.rows && Array.isArray(d.rows)) return d.rows
+  if (d?.result && Array.isArray(d.result)) return d.result
   return []
 }
 
-const fullName    = (obj) => `${obj.first_name || ''} ${obj.last_name || ''}`.trim() || String(obj.id ?? '')
+const fullName = (obj) => `${obj.first_name || ''} ${obj.last_name || ''}`.trim() || String(obj.id ?? '')
 const courseLabel = (obj) => obj.name || obj.course_name || obj.title || String(obj.id ?? '')
+
+// Resolve student display name regardless of field names from API
+const studentName = (s) => {
+  if (s.first_name || s.last_name) return `${s.first_name || ''} ${s.last_name || ''}`.trim()
+  return s.name || s.student_name || s.full_name || `Student #${s.id}`
+}
 
 const emptyBatchForm = {
   name: '', manager_id: '', faculty_id: '', course_id: '',
@@ -58,45 +65,45 @@ const emptyStudentForm = {
 }
 
 export default function Batch() {
-  // ── Batch list state ─────────────────────────────────────────────────────
-  const [allBatches,   setAllBatches]   = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [courses,      setCourses]      = useState([])
-  const [managers,     setManagers]     = useState([])
-  const [faculties,    setFaculties]    = useState([])
+  // ── Batch list state ──────────────────────────────────────────────────────
+  const [allBatches, setAllBatches] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [courses, setCourses] = useState([])
+  const [managers, setManagers] = useState([])
+  const [faculties, setFaculties] = useState([])
 
   // Batch form / modal
-  const [isModalOpen,  setIsModalOpen]  = useState(false)
-  const [form,         setForm]         = useState(emptyBatchForm)
-  const [editId,       setEditId]       = useState(null)
-  const [deleteModal,  setDeleteModal]  = useState({ isOpen: false, batch: null })
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [form, setForm] = useState(emptyBatchForm)
+  const [editId, setEditId] = useState(null)
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, batch: null })
 
   // Filters / pagination
-  const [pageSize,     setPageSize]     = useState(8)
-  const [pageIndex,    setPageIndex]    = useState(1)
-  const [searchText,   setSearchText]   = useState('')
+  const [pageSize, setPageSize] = useState(8)
+  const [pageIndex, setPageIndex] = useState(1)
+  const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [modeFilter,   setModeFilter]   = useState('')
+  const [modeFilter, setModeFilter] = useState('')
 
-  // ── Selected batch / student panel ───────────────────────────────────────
-  const [selectedBatch,       setSelectedBatch]       = useState(null)
-  const [batchStudents,       setBatchStudents]       = useState([])
-  const [studentsLoading,     setStudentsLoading]     = useState(false)
-  const [studentSearch,       setStudentSearch]       = useState('')
-  const [allStudents,         setAllStudents]         = useState([])  // for add-student dropdown
-  const [isStudentModalOpen,  setIsStudentModalOpen]  = useState(false)
-  const [studentForm,         setStudentForm]         = useState(emptyStudentForm)
-  const [studentEditId,       setStudentEditId]       = useState(null)
-  const [studentDeleteModal,  setStudentDeleteModal]  = useState({ isOpen: false, student: null })
-  const [addStudentMode,      setAddStudentMode]      = useState(false) // true = pick existing student
-  const [selectedStudentId,   setSelectedStudentId]   = useState('')
+  // ── Selected batch / student panel ────────────────────────────────────────
+  const [selectedBatch, setSelectedBatch] = useState(null)
+  const [batchStudents, setBatchStudents] = useState([])
+  const [studentsLoading, setStudentsLoading] = useState(false)
+  const [studentSearch, setStudentSearch] = useState('')
+  const [allStudents, setAllStudents] = useState([])
+  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false)
+  const [studentForm, setStudentForm] = useState(emptyStudentForm)
+  const [studentEditId, setStudentEditId] = useState(null)
+  const [studentDeleteModal, setStudentDeleteModal] = useState({ isOpen: false, student: null })
+  const [addStudentMode, setAddStudentMode] = useState(false)
+  const [selectedStudentId, setSelectedStudentId] = useState('')
 
-  // ── Filtering / pagination ───────────────────────────────────────────────
+  // ── Filtering / pagination ────────────────────────────────────────────────
   const filteredBatches = useMemo(() => {
     return allBatches.filter((b) => {
       const matchStatus = !statusFilter || b.batch_status === statusFilter
-      const matchMode   = !modeFilter   || b.batch_mode   === modeFilter
-      const matchSearch = !searchText   ||
+      const matchMode = !modeFilter || b.batch_mode === modeFilter
+      const matchSearch = !searchText ||
         b.name?.toLowerCase().includes(searchText.toLowerCase()) ||
         b.course_name?.toLowerCase().includes(searchText.toLowerCase()) ||
         b.manager_name?.toLowerCase().includes(searchText.toLowerCase())
@@ -104,24 +111,31 @@ export default function Batch() {
     })
   }, [allBatches, statusFilter, modeFilter, searchText])
 
-  const totalPages   = Math.ceil(filteredBatches.length / pageSize) || 1
+  const totalPages = Math.ceil(filteredBatches.length / pageSize) || 1
   const pagedBatches = filteredBatches.slice((pageIndex - 1) * pageSize, pageIndex * pageSize)
 
+  // ── Student search — supports any field name structure from API ───────────
   const filteredBatchStudents = useMemo(() => {
     if (!studentSearch) return batchStudents
     const q = studentSearch.toLowerCase()
-    return batchStudents.filter(s =>
-      `${s.first_name} ${s.last_name}`.toLowerCase().includes(q) ||
-      s.email?.toLowerCase().includes(q) ||
-      s.mobile?.includes(q)
-    )
+    return batchStudents.filter((s) => {
+      // Build a combined name string from every possible name field
+      const name = [
+        s.first_name, s.last_name, s.name, s.student_name, s.full_name
+      ].filter(Boolean).join(' ').toLowerCase()
+
+      const email = (s.email || '').toLowerCase()
+      const mobile = (s.mobile || s.phone || s.contact || s.mobile_no || '')
+
+      return name.includes(q) || email.includes(q) || String(mobile).includes(q)
+    })
   }, [batchStudents, studentSearch])
 
-  // ── Fetch all batches ────────────────────────────────────────────────────
+  // ── Fetch all batches ─────────────────────────────────────────────────────
   const fetchAllBatches = async () => {
     setLoading(true)
     try {
-      const res  = await axios.get(`${API}/get_batch_list`, { params: { page_size: 9999, page_index: 1 } })
+      const res = await axios.get(`${API}/get_batch_list`, { params: { page_size: 9999, page_index: 1 } })
       const data = res.data.data || res.data
       setAllBatches(Array.isArray(data) ? data : [])
     } catch (err) {
@@ -132,7 +146,7 @@ export default function Batch() {
     }
   }
 
-  // ── Fetch dropdown data ──────────────────────────────────────────────────
+  // ── Fetch dropdown data ───────────────────────────────────────────────────
   const fetchDropdownData = async () => {
     try {
       const [cRes, mRes, fRes] = await Promise.all([
@@ -155,13 +169,16 @@ export default function Batch() {
 
   useEffect(() => { setPageIndex(1) }, [statusFilter, modeFilter, searchText, pageSize])
 
-  // ── Fetch students of selected batch ────────────────────────────────────
+  // ── Fetch students of selected batch ──────────────────────────────────────
   const fetchBatchStudents = async (batchId) => {
     setStudentsLoading(true)
     try {
-      const res  = await axios.get(`${API}/get_batch_students/${batchId}`)
+      const res = await axios.get(`${API}/get_batch_students/${batchId}`)
       const data = res.data.data || res.data
-      setBatchStudents(Array.isArray(data) ? data : [])
+      const arr = Array.isArray(data) ? data : []
+      // Debug — remove once student names show correctly
+      console.log('Batch student sample:', arr[0])
+      setBatchStudents(arr)
     } catch (err) {
       console.error('Fetch batch students error:', err)
       setBatchStudents([])
@@ -170,14 +187,14 @@ export default function Batch() {
     }
   }
 
-  // ── Fetch all students (for add-existing dropdown) ───────────────────────
+  // ── Fetch all students (for add-existing dropdown) ────────────────────────
   const fetchAllStudents = async () => {
     try {
-      const res  = await axios.get(`${STUDENTS_API}/get_student_list`, { params: { page_size: 9999, page_index: 1 } })
+      const res = await axios.get(`${STUDENTS_API}/get_student_list`, { params: { page_size: 9999, page_index: 1 } })
       const data = res.data.data || res.data
       setAllStudents(Array.isArray(data) ? data : [])
     } catch (err) {
-      console.error('Fetch students error:', err)
+      console.error('Fetch all students error:', err)
     }
   }
 
@@ -193,7 +210,7 @@ export default function Batch() {
     setStudentSearch('')
   }
 
-  // ── Batch CRUD ───────────────────────────────────────────────────────────
+  // ── Batch CRUD ────────────────────────────────────────────────────────────
   const handleEdit = async (id) => {
     try {
       setLoading(true)
@@ -203,27 +220,25 @@ export default function Batch() {
         axios.get(`${MANAGERS_API}/get_manager_list`),
         axios.get(`${FACULTIES_API}/get_faculty_list`)
       ])
-      const coursesData  = extractData(cRes)
-      const managersData = extractData(mRes)
-      const facultiesData= extractData(fRes)
+      setCourses(extractData(cRes))
+      setManagers(extractData(mRes))
+      setFaculties(extractData(fRes))
+
       let batchData = batchRes.data.data || batchRes.data
       if (Array.isArray(batchData)) batchData = batchData[0]
 
-      setCourses(coursesData)
-      setManagers(managersData)
-      setFaculties(facultiesData)
       setForm({
-        name:           batchData.name           || '',
-        manager_id:     batchData.manager_id     ? String(batchData.manager_id)  : '',
-        faculty_id:     batchData.faculty_id     ? String(batchData.faculty_id)  : '',
-        course_id:      batchData.course_id      ? String(batchData.course_id)   : '',
-        description:    batchData.description    || '',
-        batch_status:   batchData.batch_status   || 'upcoming',
+        name: batchData.name || '',
+        manager_id: batchData.manager_id ? String(batchData.manager_id) : '',
+        faculty_id: batchData.faculty_id ? String(batchData.faculty_id) : '',
+        course_id: batchData.course_id ? String(batchData.course_id) : '',
+        description: batchData.description || '',
+        batch_status: batchData.batch_status || 'upcoming',
         batch_category: batchData.batch_category || 'weekday',
-        batch_mode:     batchData.batch_mode     || 'online',
-        batch_time:     batchData.batch_time     || '',
-        start_date:     batchData.start_date     ? batchData.start_date.split('T')[0]  : '',
-        end_date:       batchData.end_date       ? batchData.end_date.split('T')[0]    : ''
+        batch_mode: batchData.batch_mode || 'online',
+        batch_time: batchData.batch_time || '',
+        start_date: batchData.start_date ? batchData.start_date.split('T')[0] : '',
+        end_date: batchData.end_date ? batchData.end_date.split('T')[0] : ''
       })
       setEditId(batchData.id || id)
       setIsModalOpen(true)
@@ -239,7 +254,12 @@ export default function Batch() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      const payload = { ...form, manager_id: Number(form.manager_id), faculty_id: Number(form.faculty_id), course_id: Number(form.course_id) }
+      const payload = {
+        ...form,
+        manager_id: Number(form.manager_id),
+        faculty_id: Number(form.faculty_id),
+        course_id: Number(form.course_id)
+      }
       if (editId) {
         await axios.put(`${API}/update_batch`, { id: editId, ...payload })
       } else {
@@ -253,7 +273,7 @@ export default function Batch() {
     }
   }
 
-  const openDeleteModal  = (batch) => setDeleteModal({ isOpen: true, batch })
+  const openDeleteModal = (batch) => setDeleteModal({ isOpen: true, batch })
   const closeDeleteModal = () => setDeleteModal({ isOpen: false, batch: null })
 
   const confirmDelete = async () => {
@@ -270,17 +290,17 @@ export default function Batch() {
   }
 
   const openCreateModal = () => { setForm(emptyBatchForm); setEditId(null); setIsModalOpen(true) }
-  const closeModal      = () => { setIsModalOpen(false); setForm(emptyBatchForm); setEditId(null) }
+  const closeModal = () => { setIsModalOpen(false); setForm(emptyBatchForm); setEditId(null) }
 
   const clearFilters = () => { setStatusFilter(''); setModeFilter(''); setSearchText('') }
-  const hasFilters   = statusFilter || modeFilter || searchText
+  const hasFilters = statusFilter || modeFilter || searchText
 
   const formatDate = (d) => {
     if (!d) return '-'
     return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  // ── Student CRUD inside batch ────────────────────────────────────────────
+  // ── Student CRUD ──────────────────────────────────────────────────────────
   const openAddStudentModal = async () => {
     await fetchAllStudents()
     setAddStudentMode(true)
@@ -299,16 +319,16 @@ export default function Batch() {
 
   const openEditStudentModal = async (student) => {
     try {
-      const res  = await axios.get(`${STUDENTS_API}/get_student/${student.id}`)
-      let data   = res.data.data || res.data
+      const res = await axios.get(`${STUDENTS_API}/get_student/${student.id}`)
+      let data = res.data.data || res.data
       if (Array.isArray(data)) data = data[0]
       setStudentForm({
-        first_name:       data.first_name       || '',
-        last_name:        data.last_name        || '',
-        mobile:           data.mobile           || '',
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
+        mobile: data.mobile || '',
         alternate_mobile: data.alternate_mobile || '',
-        dob:              data.dob              ? data.dob.split('T')[0] : '',
-        email:            data.email            || ''
+        dob: data.dob ? data.dob.split('T')[0] : '',
+        email: data.email || ''
       })
       setStudentEditId(data.id || student.id)
       setAddStudentMode(false)
@@ -332,18 +352,15 @@ export default function Batch() {
     e.preventDefault()
     try {
       if (addStudentMode) {
-        // Link existing student to this batch
         await axios.post(`${API}/add_student_to_batch`, {
           batch_id: selectedBatch.id,
           student_id: Number(selectedStudentId)
         })
       } else if (studentEditId) {
-        // Update student info
         await axios.put(`${STUDENTS_API}/update_student`, { id: studentEditId, ...studentForm })
       } else {
-        // Create new student then link to batch
-        const res     = await axios.post(`${STUDENTS_API}/create_student`, studentForm)
-        const newId   = res.data?.data?.id || res.data?.id
+        const res = await axios.post(`${STUDENTS_API}/create_student`, studentForm)
+        const newId = res.data?.data?.id || res.data?.id
         if (newId) {
           await axios.post(`${API}/add_student_to_batch`, { batch_id: selectedBatch.id, student_id: newId })
         }
@@ -356,7 +373,7 @@ export default function Batch() {
     }
   }
 
-  const openStudentDeleteModal  = (student) => setStudentDeleteModal({ isOpen: true, student })
+  const openStudentDeleteModal = (student) => setStudentDeleteModal({ isOpen: true, student })
   const closeStudentDeleteModal = () => setStudentDeleteModal({ isOpen: false, student: null })
 
   const confirmRemoveStudent = async () => {
@@ -395,10 +412,10 @@ export default function Batch() {
         </button>
       </div>
 
-      {/* Main layout: cards + optional student panel side by side */}
+      {/* Main layout */}
       <div className={`flex gap-5 items-start ${selectedBatch ? 'flex-col lg:flex-row' : ''}`}>
 
-        {/* ── Left: Batch cards column ─────────────────────────────────── */}
+        {/* ── Left: Batch cards ─────────────────────────────────────────── */}
         <div className={`flex flex-col gap-5 min-w-0 ${selectedBatch ? 'w-full lg:w-[420px] lg:shrink-0' : 'w-full'}`}>
 
           {/* Filters */}
@@ -411,7 +428,7 @@ export default function Batch() {
                   placeholder="Search batches..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  className="w-full pl-9 pr-9 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                 />
                 {searchText && (
                   <button onClick={() => setSearchText('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -423,7 +440,7 @@ export default function Batch() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className={`px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-primary-500 ${statusFilter ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200'}`}
+                className={`px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-primary-500 transition-colors ${statusFilter ? 'border-blue-400 bg-blue-50 text-blue-700 font-medium' : 'border-slate-200'}`}
               >
                 <option value="">All Status</option>
                 <option value="upcoming">Upcoming</option>
@@ -435,7 +452,7 @@ export default function Batch() {
               <select
                 value={modeFilter}
                 onChange={(e) => setModeFilter(e.target.value)}
-                className={`px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-primary-500 ${modeFilter ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-slate-200'}`}
+                className={`px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-primary-500 transition-colors ${modeFilter ? 'border-purple-400 bg-purple-50 text-purple-700 font-medium' : 'border-slate-200'}`}
               >
                 <option value="">All Modes</option>
                 <option value="online">Online</option>
@@ -444,11 +461,40 @@ export default function Batch() {
               </select>
 
               {hasFilters && (
-                <button onClick={clearFilters} className="flex items-center gap-1.5 px-3 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 text-sm font-medium">
+                <button onClick={clearFilters}
+                  className="flex items-center gap-1.5 px-3 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 text-sm font-medium">
                   <X className="w-4 h-4" /> Clear
                 </button>
               )}
             </div>
+
+            {/* Active filter tags */}
+            {hasFilters && (
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                <span className="text-xs text-slate-500">Showing:</span>
+                {statusFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
+                    {statusFilter}
+                    <button onClick={() => setStatusFilter('')}><X className="w-3 h-3" /></button>
+                  </span>
+                )}
+                {modeFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-xs font-medium">
+                    {modeFilter}
+                    <button onClick={() => setModeFilter('')}><X className="w-3 h-3" /></button>
+                  </span>
+                )}
+                {searchText && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-full text-xs font-medium">
+                    "{searchText}"
+                    <button onClick={() => setSearchText('')}><X className="w-3 h-3" /></button>
+                  </span>
+                )}
+                <span className="text-xs font-medium text-slate-600 ml-1">
+                  {filteredBatches.length} result{filteredBatches.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Cards grid */}
@@ -468,15 +514,14 @@ export default function Batch() {
                     className={`bg-white rounded-xl border overflow-hidden flex flex-col cursor-pointer transition-all
                       ${isSelected
                         ? 'border-primary-500 shadow-md ring-2 ring-primary-400 ring-offset-1'
-                        : 'border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300'
-                      }`}
+                        : 'border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300'}`}
                   >
                     {/* Card Header */}
                     <div className={`${statusHeaderColors[batch.batch_status] || 'bg-slate-500'} px-4 pt-4 pb-8`}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-white text-base leading-tight line-clamp-2">{batch.name}</h3>
-                          {batch.course_name  && <p className="text-white/80 text-xs mt-1 font-medium truncate">{batch.course_name}</p>}
+                          {batch.course_name && <p className="text-white/80 text-xs mt-1 font-medium truncate">{batch.course_name}</p>}
                           {batch.manager_name && <p className="text-white/70 text-xs mt-0.5 truncate">{batch.manager_name}</p>}
                         </div>
                         <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border-2 ${isSelected ? 'bg-white/30 border-white' : 'bg-white/20 border-white/30'}`}>
@@ -492,9 +537,9 @@ export default function Batch() {
                           {batch.batch_status || '-'}
                         </span>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${modeColors[batch.batch_mode] || 'bg-slate-100 text-slate-600'}`}>
-                          {batch.batch_mode === 'online'  && <Wifi    className="w-3 h-3" />}
-                          {batch.batch_mode === 'offline' && <MapPin  className="w-3 h-3" />}
-                          {batch.batch_mode === 'hybrid'  && <Monitor className="w-3 h-3" />}
+                          {batch.batch_mode === 'online' && <Wifi className="w-3 h-3" />}
+                          {batch.batch_mode === 'offline' && <MapPin className="w-3 h-3" />}
+                          {batch.batch_mode === 'hybrid' && <Monitor className="w-3 h-3" />}
                           {batch.batch_mode || '-'}
                         </span>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${categoryColors[batch.batch_category] || 'bg-slate-100 text-slate-600'}`}>
@@ -584,7 +629,7 @@ export default function Batch() {
           </div>
         </div>
 
-        {/* ── Right: Student panel (shown when a batch is selected) ─────── */}
+        {/* ── Right: Student panel ──────────────────────────────────────── */}
         {selectedBatch && (
           <div className="flex-1 min-w-0 flex flex-col gap-4">
 
@@ -607,20 +652,13 @@ export default function Batch() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={openAddStudentModal}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
-                    title="Add existing student"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    Add Existing
+                  <button onClick={openAddStudentModal}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium">
+                    <UserPlus className="w-4 h-4" /> Add Existing
                   </button>
-                  <button
-                    onClick={openCreateStudentModal}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New Student
+                  <button onClick={openCreateStudentModal}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium">
+                    <Plus className="w-4 h-4" /> New Student
                   </button>
                 </div>
               </div>
@@ -671,7 +709,7 @@ export default function Batch() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-medium text-slate-800 truncate">
-                                  {student.first_name} {student.last_name}
+                                  {studentName(student)}
                                 </p>
                                 <p className="text-xs text-slate-400">ID: {student.id}</p>
                               </div>
@@ -680,13 +718,15 @@ export default function Batch() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5 text-sm text-slate-600">
                               <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate max-w-[160px]">{student.email || '-'}</span>
+                              <span className="truncate max-w-[160px]">
+                                {student.email || '-'}
+                              </span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5 text-sm text-slate-600">
                               <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              {student.mobile || '-'}
+                              {student.mobile || student.phone || student.contact || student.mobile_no || '-'}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -715,6 +755,12 @@ export default function Batch() {
                   <p className="text-slate-400 text-sm mt-1">
                     {studentSearch ? 'Try a different search term.' : 'Use the buttons above to add students.'}
                   </p>
+                  {studentSearch && (
+                    <button onClick={() => setStudentSearch('')}
+                      className="mt-3 px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">
+                      Clear Search
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -722,7 +768,7 @@ export default function Batch() {
         )}
       </div>
 
-      {/* ── Batch Create / Edit Modal ───────────────────────────────────────── */}
+      {/* ── Batch Create / Edit Modal ─────────────────────────────────────── */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal}></div>
@@ -830,7 +876,7 @@ export default function Batch() {
         </div>
       )}
 
-      {/* ── Student Add / Edit Modal ────────────────────────────────────────── */}
+      {/* ── Student Add / Edit Modal ──────────────────────────────────────── */}
       {isStudentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeStudentModal}></div>
@@ -846,31 +892,24 @@ export default function Batch() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <form onSubmit={handleStudentSubmit} className="p-6 space-y-4">
               {addStudentMode ? (
-                /* Pick from existing students */
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Select Student *</label>
-                  <select
-                    value={selectedStudentId}
-                    onChange={(e) => setSelectedStudentId(e.target.value)}
-                    required
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                  >
+                  <select value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)} required
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
                     <option value="">Choose a student...</option>
                     {allStudents
                       .filter(s => !batchStudents.some(bs => bs.id === s.id))
                       .map((s) => (
                         <option key={s.id} value={String(s.id)}>
-                          {s.first_name} {s.last_name} — {s.email}
+                          {studentName(s)} — {s.email || s.mobile || `ID: ${s.id}`}
                         </option>
                       ))}
                   </select>
                   <p className="text-xs text-slate-400 mt-1.5">Only students not already in this batch are shown.</p>
                 </div>
               ) : (
-                /* Create / edit student form */
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -913,7 +952,6 @@ export default function Batch() {
                   </div>
                 </>
               )}
-
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={closeStudentModal}
                   className="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
@@ -929,7 +967,7 @@ export default function Batch() {
         </div>
       )}
 
-      {/* ── Batch Delete Modal ──────────────────────────────────────────────── */}
+      {/* ── Batch Delete Modal ────────────────────────────────────────────── */}
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeDeleteModal}></div>
@@ -960,7 +998,7 @@ export default function Batch() {
         </div>
       )}
 
-      {/* ── Student Remove Modal ────────────────────────────────────────────── */}
+      {/* ── Student Remove Modal ──────────────────────────────────────────── */}
       {studentDeleteModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeStudentDeleteModal}></div>
@@ -971,11 +1009,9 @@ export default function Batch() {
               </div>
               <h3 className="text-xl font-semibold text-slate-800 mb-2">Remove Student</h3>
               <p className="text-slate-500 mb-2">Remove this student from the batch?</p>
-              <div className="bg-slate-100 rounded-lg px-4 py-3 mb-4">
+              <div className="bg-slate-100 rounded-lg px-4 py-3 mb-6">
                 <p className="text-xs text-slate-500">Student</p>
-                <p className="font-semibold text-slate-800">
-                  {studentDeleteModal.student?.first_name} {studentDeleteModal.student?.last_name}
-                </p>
+                <p className="font-semibold text-slate-800">{studentName(studentDeleteModal.student || {})}</p>
                 <p className="text-xs text-slate-500 mt-0.5">from {selectedBatch?.name}</p>
               </div>
               <div className="flex items-center justify-center gap-3">
