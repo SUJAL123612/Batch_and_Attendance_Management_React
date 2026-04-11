@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import {
   Plus, Search, Edit2, Trash2, ChevronLeft, ChevronRight,
@@ -57,6 +58,7 @@ const emptyForm = {
 
 // ── Component ──────────────────────────────────────────────────────────────
 function Batch() {
+  const navigate = useNavigate()
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -352,7 +354,8 @@ function Batch() {
           {filteredBatches.map((batch) => (
             <div
               key={batch.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow"
+              onClick={() => navigate(`/batches/${batch.id}`)}
+              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow cursor-pointer"
             >
               {/* Card Header */}
               <div className={`${statusHeaderColors[batch.batch_status] || 'bg-slate-500'} px-4 pt-4 pb-8`}>
@@ -416,14 +419,14 @@ function Batch() {
               {/* Card Footer */}
               <div className="flex items-center justify-end gap-1 px-4 py-2.5 border-t border-slate-100 bg-slate-50">
                 <button
-                  onClick={() => handleEdit(batch.id)}
+                  onClick={(e) => { e.stopPropagation(); handleEdit(batch.id) }}
                   className="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                   title="Edit"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => openDeleteModal(batch)}
+                  onClick={(e) => { e.stopPropagation(); openDeleteModal(batch) }}
                   className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   title="Delete"
                 >
