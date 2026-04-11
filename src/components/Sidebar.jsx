@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { 
   LayoutDashboard, 
@@ -9,7 +10,11 @@ import {
   Settings,
   BookOpen,
   UserCog,
-  User
+  User,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X
 } from 'lucide-react'
 
 const navItems = [
@@ -24,49 +29,126 @@ const navItems = [
   { name: 'Reports', path: '/reports', icon: FileText },
 ]
 
-function Sidebar() {
+function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) {
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-slate-900 text-white flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-slate-700">
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <GraduationCap className="w-7 h-7 text-primary-400" />
-          <span>EduManager</span>
-        </h1>
-        <p className="text-xs text-slate-400 mt-1">Batch & Attendance System</p>
-      </div>
+    <>
+      {/* Mobile Overlay */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
+      {/* Sidebar */}
+      <aside 
+        className={`
+          fixed left-0 top-0 h-screen bg-card border-r border-border flex flex-col z-50
+          transition-all duration-300 ease-in-out
+          ${isCollapsed ? 'w-20' : 'w-64'}
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        {/* Logo */}
+        <div className={`p-4 border-b border-border flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center glow-primary">
+              <GraduationCap className="w-5 h-5 text-primary" />
+            </div>
+            {!isCollapsed && (
+              <div className="animate-fade-in">
+                <h1 className="text-lg font-bold text-foreground">EduManager</h1>
+                <p className="text-xs text-muted-foreground">Management System</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Mobile close button */}
+          <button 
+            onClick={() => setIsMobileOpen(false)}
+            className="lg:hidden p-2 hover:bg-secondary rounded-lg text-muted-foreground"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {!isCollapsed && (
+            <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Main Menu
+            </p>
+          )}
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={() => setIsMobileOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative
+                ${isCollapsed ? 'justify-center' : ''}
+                ${isActive
+                  ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                }`
+              }
+            >
+              <item.icon className={`w-5 h-5 shrink-0 ${isCollapsed ? '' : ''}`} />
+              {!isCollapsed && (
+                <span className="font-medium text-sm">{item.name}</span>
+              )}
+              
+              {/* Tooltip for collapsed state */}
+              {isCollapsed && (
+                <div className="absolute left-full ml-2 px-3 py-2 bg-popover text-popover-foreground text-sm font-medium rounded-lg shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                  {item.name}
+                </div>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="p-3 border-t border-border space-y-1">
           <NavLink
-            key={item.path}
-            to={item.path}
+            to="/settings"
+            onClick={() => setIsMobileOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                isActive
-                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative
+              ${isCollapsed ? 'justify-center' : ''}
+              ${isActive
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`
             }
           >
-            <item.icon className="w-5 h-5" />
-            <span className="font-medium">{item.name}</span>
+            <Settings className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span className="font-medium text-sm">Settings</span>}
+            
+            {isCollapsed && (
+              <div className="absolute left-full ml-2 px-3 py-2 bg-popover text-popover-foreground text-sm font-medium rounded-lg shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                Settings
+              </div>
+            )}
           </NavLink>
-        ))}
-      </nav>
-
-      {/* Settings */}
-      <div className="p-4 border-t border-slate-700">
-        <NavLink
-          to="/settings"
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-200"
-        >
-          <Settings className="w-5 h-5" />
-          <span className="font-medium">Settings</span>
-        </NavLink>
-      </div>
-    </aside>
+          
+          {/* Collapse toggle - desktop only */}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className={`hidden lg:flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200 ${isCollapsed ? 'justify-center' : ''}`}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="w-5 h-5" />
+            ) : (
+              <>
+                <ChevronLeft className="w-5 h-5" />
+                <span className="font-medium text-sm">Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
+      </aside>
+    </>
   )
 }
 
