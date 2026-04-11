@@ -196,7 +196,7 @@ export default function Batch() {
       const data = res.data.data || res.data
       const arr = Array.isArray(data) ? data : []
       // Debug — remove once student names show correctly
-      console.log('Batch student sample:', arr[0])
+      console.log("Student Data:", arr)
       setBatchStudents(arr)
     } catch (err) {
       console.error('Fetch batch students error:', err)
