@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import axios from 'axios'
 import {
   Plus, Search, Edit2, Trash2, ChevronLeft, ChevronRight,
@@ -33,7 +33,6 @@ const categoryColors = {
   weekend: 'bg-pink-100 text-pink-700'
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
 const extractData = (response) => {
   const d = response.data
   if (Array.isArray(d)) return d
@@ -43,11 +42,8 @@ const extractData = (response) => {
   return []
 }
 
-const fullName = (obj) =>
-  `${obj.first_name || ''} ${obj.last_name || ''}`.trim() || String(obj.id ?? '')
-
-const courseLabel = (obj) =>
-  obj.name || obj.course_name || obj.title || String(obj.id ?? '')
+const fullName = (obj) => `${obj.first_name || ''} ${obj.last_name || ''}`.trim() || String(obj.id ?? '')
+const courseLabel = (obj) => obj.name || obj.course_name || obj.title || String(obj.id ?? '')
 
 const emptyForm = {
   name: '', manager_id: '', faculty_id: '', course_id: '',
@@ -55,9 +51,9 @@ const emptyForm = {
   batch_mode: 'online', batch_time: '', start_date: '', end_date: ''
 }
 
-// ── Component ──────────────────────────────────────────────────────────────
 function Batch() {
-  const [batches, setBatches] = useState([])
+  // allBatches holds every record from server, batches is never used for display
+  const [allBatches, setAllBatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -69,21 +65,44 @@ function Batch() {
   const [editId, setEditId] = useState(null)
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, batch: null })
 
-  const [pageSize, setPageSize] = useState(5)
+  const [pageSize, setPageSize] = useState(8)
   const [pageIndex, setPageIndex] = useState(1)
-  const [sortBy, setSortBy] = useState('id')
-  const [sortOrder, setSortOrder] = useState('ASC')
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [modeFilter, setModeFilter] = useState('')
 
-  // ── Client-side filtering (guaranteed fallback) ──────────────────────────
-  const filteredBatches = batches.filter((batch) => {
-    const matchStatus = !statusFilter || batch.batch_status === statusFilter
-    const matchMode = !modeFilter || batch.batch_mode === modeFilter
-    const matchSearch = !searchText || batch.name?.toLowerCase().includes(searchText.toLowerCase())
-    return matchStatus && matchMode && matchSearch
-  })
+  // ── All filtering + pagination done client-side ──────────────────────────
+  const filteredBatches = useMemo(() => {
+    return allBatches.filter((batch) => {
+      const matchStatus = !statusFilter || batch.batch_status === statusFilter
+      const matchMode = !modeFilter || batch.batch_mode === modeFilter
+      const matchSearch = !searchText ||
+        batch.name?.toLowerCase().includes(searchText.toLowerCase()) ||
+        batch.course_name?.toLowerCase().includes(searchText.toLowerCase()) ||
+        batch.manager_name?.toLowerCase().includes(searchText.toLowerCase())
+      return matchStatus && matchMode && matchSearch
+    })
+  }, [allBatches, statusFilter, modeFilter, searchText])
+
+  const totalPages = Math.ceil(filteredBatches.length / pageSize) || 1
+  const pagedBatches = filteredBatches.slice((pageIndex - 1) * pageSize, pageIndex * pageSize)
+
+  // ── Fetch all batches (no server-side pagination/filter) ─────────────────
+  const fetchAllBatches = async () => {
+    setLoading(true)
+    try {
+      const res = await axios.get(`${API}/get_batch_list`, {
+        params: { page_size: 9999, page_index: 1 }
+      })
+      const data = res.data.data || res.data
+      setAllBatches(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Fetch error:', err)
+      setAllBatches([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // ── Fetch dropdowns ──────────────────────────────────────────────────────
   const fetchDropdownData = async () => {
@@ -101,33 +120,13 @@ function Batch() {
     }
   }
 
-  // ── Fetch batches ────────────────────────────────────────────────────────
-  const fetchBatches = async () => {
-    setLoading(true)
-    try {
-      const res = await axios.get(`${API}/get_batch_list`, {
-        params: {
-          page_size: pageSize,
-          page_index: pageIndex,
-          sort_by: sortBy,
-          sort_order: sortOrder,
-          search_text: searchText,
-          batch_status: statusFilter || undefined,
-          batch_mode: modeFilter || undefined
-        }
-      })
-      const data = res.data.data || res.data
-      setBatches(Array.isArray(data) ? data : [])
-    } catch (err) {
-      console.error('Fetch error:', err)
-      setBatches([])
-    } finally {
-      setLoading(false)
-    }
-  }
+  useEffect(() => {
+    fetchDropdownData()
+    fetchAllBatches()
+  }, [])
 
-  useEffect(() => { fetchDropdownData() }, [])
-  useEffect(() => { fetchBatches() }, [pageIndex, pageSize, sortBy, sortOrder, statusFilter, modeFilter])
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPageIndex(1) }, [statusFilter, modeFilter, searchText, pageSize])
 
   // ── Edit ─────────────────────────────────────────────────────────────────
   const handleEdit = async (id) => {
@@ -187,7 +186,7 @@ function Batch() {
         await axios.post(`${API}/create_batch`, payload)
       }
       closeModal()
-      fetchBatches()
+      fetchAllBatches()
     } catch (err) {
       console.error('Submit error:', err)
       alert('Failed to save batch')
@@ -203,18 +202,22 @@ function Batch() {
     try {
       await axios.delete(`${API}/delete_batch/${deleteModal.batch.id}`)
       closeDeleteModal()
-      fetchBatches()
+      fetchAllBatches()
     } catch (err) {
       console.error('Delete error:', err)
       alert('Failed to delete batch')
     }
   }
 
-  // ── Search / modal ───────────────────────────────────────────────────────
-  const handleSearch = () => { setPageIndex(1); fetchBatches() }
-
+  // ── Modal ─────────────────────────────────────────────────────────────────
   const openCreateModal = () => { setForm(emptyForm); setEditId(null); setIsModalOpen(true) }
   const closeModal = () => { setIsModalOpen(false); setForm(emptyForm); setEditId(null) }
+
+  const clearFilters = () => {
+    setStatusFilter('')
+    setModeFilter('')
+    setSearchText('')
+  }
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-'
@@ -223,7 +226,9 @@ function Batch() {
     })
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  const hasFilters = statusFilter || modeFilter || searchText
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 min-w-0">
 
@@ -231,7 +236,9 @@ function Batch() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-800">Batch Management</h1>
-          <p className="text-slate-500 mt-1">Manage your institute batches and schedules</p>
+          <p className="text-slate-500 mt-1">
+            {allBatches.length} total batch{allBatches.length !== 1 ? 'es' : ''}
+          </p>
         </div>
         <button
           onClick={openCreateModal}
@@ -244,26 +251,31 @@ function Batch() {
 
       {/* Filters */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
 
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search batches..."
+              placeholder="Search by name, course, manager..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
             />
+            {searchText && (
+              <button onClick={() => setSearchText('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPageIndex(1) }}
-            className="px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500"
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={`px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-primary-500 transition-colors ${statusFilter ? 'border-blue-400 bg-blue-50 text-blue-700 font-medium' : 'border-slate-200'
+              }`}
           >
             <option value="">All Status</option>
             <option value="upcoming">Upcoming</option>
@@ -275,8 +287,9 @@ function Batch() {
           {/* Mode Filter */}
           <select
             value={modeFilter}
-            onChange={(e) => { setModeFilter(e.target.value); setPageIndex(1) }}
-            className="px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500"
+            onChange={(e) => setModeFilter(e.target.value)}
+            className={`px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-primary-500 transition-colors ${modeFilter ? 'border-purple-400 bg-purple-50 text-purple-700 font-medium' : 'border-slate-200'
+              }`}
           >
             <option value="">All Modes</option>
             <option value="online">Online</option>
@@ -290,52 +303,47 @@ function Batch() {
             onChange={(e) => setPageSize(Number(e.target.value))}
             className="px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500"
           >
-            <option value={5}>5 per page</option>
-            <option value={10}>10 per page</option>
-            <option value={25}>25 per page</option>
-            <option value={50}>50 per page</option>
+            <option value={4}>4 per page</option>
+            <option value={8}>8 per page</option>
+            <option value={12}>12 per page</option>
+            <option value={24}>24 per page</option>
           </select>
 
-          {/* Search Button */}
-          <button
-            onClick={handleSearch}
-            className="px-4 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium"
-          >
-            Search
-          </button>
-
           {/* Clear Filters */}
-          {(statusFilter || modeFilter || searchText) && (
+          {hasFilters && (
             <button
-              onClick={() => { setStatusFilter(''); setModeFilter(''); setSearchText(''); setPageIndex(1) }}
-              className="px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
             >
-              Clear Filters
+              <X className="w-4 h-4" /> Clear
             </button>
           )}
         </div>
 
-        {/* Active filter tags */}
-        {(statusFilter || modeFilter) && (
-          <div className="flex flex-wrap gap-2 mt-3">
+        {/* Active filter summary */}
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+            <span className="text-xs text-slate-500">Showing:</span>
             {statusFilter && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
-                Status: {statusFilter}
-                <button onClick={() => setStatusFilter('')} className="hover:text-blue-900">
-                  <X className="w-3 h-3" />
-                </button>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
+                {statusFilter}
+                <button onClick={() => setStatusFilter('')}><X className="w-3 h-3" /></button>
               </span>
             )}
             {modeFilter && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-xs font-medium">
-                Mode: {modeFilter}
-                <button onClick={() => setModeFilter('')} className="hover:text-purple-900">
-                  <X className="w-3 h-3" />
-                </button>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-xs font-medium">
+                {modeFilter}
+                <button onClick={() => setModeFilter('')}><X className="w-3 h-3" /></button>
               </span>
             )}
-            <span className="text-xs text-slate-500 self-center">
-              {filteredBatches.length} result{filteredBatches.length !== 1 ? 's' : ''} found
+            {searchText && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-full text-xs font-medium">
+                "{searchText}"
+                <button onClick={() => setSearchText('')}><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            <span className="text-xs font-medium text-slate-600 ml-1">
+              {filteredBatches.length} result{filteredBatches.length !== 1 ? 's' : ''}
             </span>
           </div>
         )}
@@ -347,9 +355,9 @@ function Batch() {
           <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
           <span className="ml-3 text-slate-500">Loading batches...</span>
         </div>
-      ) : filteredBatches.length > 0 ? (
+      ) : pagedBatches.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filteredBatches.map((batch) => (
+          {pagedBatches.map((batch) => (
             <div
               key={batch.id}
               className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow"
@@ -415,18 +423,12 @@ function Batch() {
 
               {/* Card Footer */}
               <div className="flex items-center justify-end gap-1 px-4 py-2.5 border-t border-slate-100 bg-slate-50">
-                <button
-                  onClick={() => handleEdit(batch.id)}
-                  className="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                  title="Edit"
-                >
+                <button onClick={() => handleEdit(batch.id)}
+                  className="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Edit">
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => openDeleteModal(batch)}
-                  className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete"
-                >
+                <button onClick={() => openDeleteModal(batch)}
+                  className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -437,14 +439,14 @@ function Batch() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-16 text-center">
           <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-500 font-medium">
-            {statusFilter || modeFilter ? 'No batches match the selected filters' : 'No batches found'}
+            {hasFilters ? 'No batches match the selected filters' : 'No batches found'}
           </p>
           <p className="text-slate-400 text-sm mt-1">
-            {statusFilter || modeFilter ? 'Try changing or clearing the filters.' : 'Add your first batch to get started.'}
+            {hasFilters ? 'Try changing or clearing the filters.' : 'Add your first batch to get started.'}
           </p>
-          {(statusFilter || modeFilter) && (
+          {hasFilters && (
             <button
-              onClick={() => { setStatusFilter(''); setModeFilter('') }}
+              onClick={clearFilters}
               className="mt-4 px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
             >
               Clear Filters
@@ -456,7 +458,7 @@ function Batch() {
       {/* Pagination */}
       <div className="flex items-center justify-between bg-white rounded-xl px-6 py-4 shadow-sm border border-slate-200">
         <p className="text-sm text-slate-600">
-          Page {pageIndex} — Showing {filteredBatches.length} {filteredBatches.length === 1 ? 'batch' : 'batches'}
+          Showing {pagedBatches.length > 0 ? (pageIndex - 1) * pageSize + 1 : 0}–{Math.min(pageIndex * pageSize, filteredBatches.length)} of {filteredBatches.length} batch{filteredBatches.length !== 1 ? 'es' : ''}
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -466,10 +468,12 @@ function Batch() {
           >
             <ChevronLeft className="w-4 h-4" /> Prev
           </button>
-          <span className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg">{pageIndex}</span>
+          <span className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg">
+            {pageIndex} / {totalPages}
+          </span>
           <button
             onClick={() => setPageIndex(pageIndex + 1)}
-            disabled={filteredBatches.length < pageSize}
+            disabled={pageIndex >= totalPages}
             className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Next <ChevronRight className="w-4 h-4" />
@@ -484,9 +488,7 @@ function Batch() {
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
 
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
-              <h2 className="text-lg font-semibold text-slate-800">
-                {editId ? 'Edit Batch' : 'Add New Batch'}
-              </h2>
+              <h2 className="text-lg font-semibold text-slate-800">{editId ? 'Edit Batch' : 'Add New Batch'}</h2>
               <button onClick={closeModal} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                 <X className="w-5 h-5" />
               </button>
@@ -494,55 +496,42 @@ function Batch() {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
-              {/* Batch Name */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Batch Name *</label>
-                <input
-                  type="text" name="name" value={form.name} onChange={handleChange} required
+                <input type="text" name="name" value={form.name} onChange={handleChange} required
                   placeholder="Enter batch name"
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                />
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                {/* Course */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Course *</label>
                   <select name="course_id" value={form.course_id} onChange={handleChange} required
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
                     <option value="">Select Course</option>
-                    {courses.map((c) => (
-                      <option key={c.id} value={String(c.id)}>{courseLabel(c)}</option>
-                    ))}
+                    {courses.map((c) => <option key={c.id} value={String(c.id)}>{courseLabel(c)}</option>)}
                   </select>
                 </div>
 
-                {/* Manager */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Manager *</label>
                   <select name="manager_id" value={form.manager_id} onChange={handleChange} required
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
                     <option value="">Select Manager</option>
-                    {managers.map((m) => (
-                      <option key={m.id} value={String(m.id)}>{fullName(m)}</option>
-                    ))}
+                    {managers.map((m) => <option key={m.id} value={String(m.id)}>{fullName(m)}</option>)}
                   </select>
                 </div>
 
-                {/* Faculty */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Faculty *</label>
                   <select name="faculty_id" value={form.faculty_id} onChange={handleChange} required
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
                     <option value="">Select Faculty</option>
-                    {faculties.map((f) => (
-                      <option key={f.id} value={String(f.id)}>{fullName(f)}</option>
-                    ))}
+                    {faculties.map((f) => <option key={f.id} value={String(f.id)}>{fullName(f)}</option>)}
                   </select>
                 </div>
 
-                {/* Status */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Status *</label>
                   <select name="batch_status" value={form.batch_status} onChange={handleChange} required
@@ -554,7 +543,6 @@ function Batch() {
                   </select>
                 </div>
 
-                {/* Mode */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Mode *</label>
                   <select name="batch_mode" value={form.batch_mode} onChange={handleChange} required
@@ -565,7 +553,6 @@ function Batch() {
                   </select>
                 </div>
 
-                {/* Category */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Category *</label>
                   <select name="batch_category" value={form.batch_category} onChange={handleChange} required
@@ -575,43 +562,31 @@ function Batch() {
                   </select>
                 </div>
 
-                {/* Batch Time */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Batch Time *</label>
-                  <input
-                    type="text" name="batch_time" value={form.batch_time} onChange={handleChange} required
+                  <input type="text" name="batch_time" value={form.batch_time} onChange={handleChange} required
                     placeholder="e.g., 6:00 PM - 9:00 PM"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                  />
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
                 </div>
 
-                {/* Start Date */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Start Date *</label>
-                  <input
-                    type="date" name="start_date" value={form.start_date} onChange={handleChange} required
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                  />
+                  <input type="date" name="start_date" value={form.start_date} onChange={handleChange} required
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
                 </div>
 
-                {/* End Date */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">End Date *</label>
-                  <input
-                    type="date" name="end_date" value={form.end_date} onChange={handleChange} required
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                  />
+                  <input type="date" name="end_date" value={form.end_date} onChange={handleChange} required
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
                 </div>
               </div>
 
-              {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
-                <textarea
-                  name="description" value={form.description} onChange={handleChange} rows={3}
+                <textarea name="description" value={form.description} onChange={handleChange} rows={3}
                   placeholder="Enter batch description"
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 resize-none"
-                />
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 resize-none" />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4">
