@@ -9,6 +9,7 @@ import {
 
 const API = 'http://localhost:9998/batches'
 const STUDENTS_API = 'http://localhost:9998/students'
+const BATCH_STUDENTS_API = 'http://localhost:9998/batch_students'
 
 const statusColors = {
   upcoming: 'bg-blue-100 text-blue-700',
@@ -69,11 +70,20 @@ function BatchDetail() {
   const fetchBatchStudents = async () => {
     setStudentsLoading(true)
     try {
-      const res = await axios.get(`${API}/get_batch_students/${id}`)
+      // Try batch_students API first, fall back to batches API
+      let res
+      try {
+        res = await axios.get(`${BATCH_STUDENTS_API}/get_batch_student_list`, {
+          params: { batch_id: id }
+        })
+      } catch {
+        // Fallback to batches endpoint
+        res = await axios.get(`${API}/get_batch_students/${id}`)
+      }
       const data = res.data.data || res.data
       setBatchStudents(Array.isArray(data) ? data : [])
     } catch (err) {
-      console.error('Failed to fetch batch students:', err)
+      console.error('[v0] Failed to fetch batch students:', err)
       setBatchStudents([])
     } finally {
       setStudentsLoading(false)
@@ -113,6 +123,8 @@ function BatchDetail() {
     return fullName.includes(search) || email.includes(search) || mobile.includes(search)
   })
 
+
+
   // Get students not in this batch
   const availableStudents = allStudents.filter(
     (student) => !batchStudents.some((bs) => bs.id === student.id || bs.student_id === student.id)
@@ -125,17 +137,26 @@ function BatchDetail() {
       return
     }
     try {
-      await axios.post(`${API}/add_student_to_batch`, {
-        batch_id: Number(id),
-        student_id: Number(selectedStudentId)
-      })
+      // Try batch_students API first
+      try {
+        await axios.post(`${BATCH_STUDENTS_API}/create_batch_student`, {
+          batch_id: Number(id),
+          student_id: Number(selectedStudentId)
+        })
+      } catch {
+        // Fallback to batches endpoint
+        await axios.post(`${API}/add_student_to_batch`, {
+          batch_id: Number(id),
+          student_id: Number(selectedStudentId)
+        })
+      }
       setIsAddExistingOpen(false)
       setSelectedStudentId('')
       await fetchBatchStudents()
       await fetchAllStudents()
     } catch (err) {
-      console.error('Failed to add student to batch:', err)
-      alert('Failed to save student')
+      console.error('[v0] Failed to add student to batch:', err)
+      alert('Failed to save student. Please check if the API endpoint exists.')
     }
   }
 
@@ -165,18 +186,26 @@ function BatchDetail() {
   const handleCreateNewStudent = async (e) => {
     e.preventDefault()
     if (!validateForm()) return
-
+    
     try {
       // First create the student
       const createRes = await axios.post(`${STUDENTS_API}/create_student`, newStudentForm)
       const newStudentId = createRes.data.data?.id || createRes.data.id || createRes.data.insertId
-
+      
       if (newStudentId) {
-        // Then add to batch
-        await axios.post(`${API}/add_student_to_batch`, {
-          batch_id: Number(id),
-          student_id: Number(newStudentId)
-        })
+        // Then add to batch - try batch_students API first
+        try {
+          await axios.post(`${BATCH_STUDENTS_API}/create_batch_student`, {
+            batch_id: Number(id),
+            student_id: Number(newStudentId)
+          })
+        } catch {
+          // Fallback to batches endpoint
+          await axios.post(`${API}/add_student_to_batch`, {
+            batch_id: Number(id),
+            student_id: Number(newStudentId)
+          })
+        }
       }
 
       setIsNewStudentOpen(false)
@@ -202,7 +231,16 @@ function BatchDetail() {
     if (!deleteModal.student) return
     try {
       const studentId = deleteModal.student.student_id || deleteModal.student.id
-      await axios.delete(`${API}/remove_student_from_batch/${id}/${studentId}`)
+      const batchStudentId = deleteModal.student.batch_student_id || deleteModal.student.id
+      
+      // Try batch_students API first
+      try {
+        await axios.delete(`${BATCH_STUDENTS_API}/delete_batch_student/${batchStudentId}`)
+      } catch {
+        // Fallback to batches endpoint
+        await axios.delete(`${API}/remove_student_from_batch/${id}/${studentId}`)
+      }
+      
       setDeleteModal({ isOpen: false, student: null })
       await fetchBatchStudents()
       await fetchAllStudents()
